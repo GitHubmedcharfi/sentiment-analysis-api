@@ -1,6 +1,8 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from app.routes import sentiment, feedback, stats
 
 app = FastAPI(
@@ -47,6 +49,13 @@ app.include_router(sentiment.router, prefix="/api")
 app.include_router(feedback.router, prefix="/api/feedbacks")
 app.include_router(stats.router, prefix="/api/stats")
 
+# Mount static files directory for CSS, JS, and other assets
+frontend_path = Path(__file__).parent.parent / "frontend"
+assets_path = frontend_path / "assets"
+
+if assets_path.exists():
+    app.mount("/assets", StaticFiles(directory=str(assets_path)), name="assets")
+
 # Enable CORS for frontend apps
 app.add_middleware(
     CORSMiddleware,
@@ -56,8 +65,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/", include_in_schema=False)
+def serve_frontend():
+    """Serve the frontend HTML file"""
+    frontend_file = frontend_path / "index.html"
+    if frontend_file.exists():
+        return FileResponse(str(frontend_file))
+    return {
+        "message": "Welcome to Sentiment Analysis API!",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "redoc": "/redoc"
+    }
+
 @app.get(
-    "/",
+    "/api",
     status_code=status.HTTP_200_OK,
     summary="API Root",
     description="Welcome endpoint that provides basic information about the API",
@@ -75,7 +97,7 @@ app.add_middleware(
         }
     }
 )
-def root():
+def api_root():
     """
     API root endpoint.
     
