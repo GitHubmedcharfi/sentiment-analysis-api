@@ -1,0 +1,57 @@
+version: "3.8"  # optional, can remove
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: sentiment_db
+      MYSQL_USER: sentiment_user
+      MYSQL_PASSWORD: sentiment_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - sentiment-net
+
+  backend:
+    image: sentiment-backend:v1.0.0
+    container_name: sentiment-backend
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: sentiment_user
+      MYSQL_PASSWORD: sentiment_pass
+      MYSQL_DB: sentiment_db
+    ports:
+      - "8000:8000"   # Expose backend to host for browser access
+    networks:
+      - sentiment-net
+
+  frontend:
+    image: sentiment-frontend:v1.0.0
+    container_name: sentiment-frontend
+    restart: always
+    environment:
+      HOST: 0.0.0.0           # React listens on all interfaces
+      REACT_APP_API_BASE_URL: http://localhost:8000   # Browser REST API
+      REACT_APP_WS_URL: ws://localhost:8000/ws       # Browser WebSocket
+    ports:
+      - "81:3000"            # Expose frontend at host port 81
+    depends_on:
+      - backend
+    networks:
+      - sentiment-net
+
+volumes:
+  mysql_data:
+
+networks:
+  sentiment-net:
+    driver: bridge
